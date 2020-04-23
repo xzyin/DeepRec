@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import tensorflow as tf
 from deeprec.dataset.parser import BaseRecordParser, ParserType
 
 
@@ -16,16 +17,35 @@ class Feature2vecRecordParser(BaseRecordParser):
                  verbose=True):
         super(Feature2vecRecordParser, self).__init__(path, output, prefix, suffix, size, process, verbose)
 
-    def _parser_train(self, line):
+    def parse_train(self, line):
+        res = line.strip().split(" ")
+        uid = bytes(res[0], encoding="utf-8")
+        input_data = res[1].split(";")
+        vid = int(input_data[0])
+        third_category = int(input_data[1])
+        tag = int(input_data[2].split(","))
+        kis = int(input_data[3])
+        album = int(input_data[4])
+        output_data = res[2].split(";")
+        output = int(output_data[0])
+
+        feature = {
+            "uid": Feature2vecRecordParser.bytes_list_feature([uid]),
+            "vid": Feature2vecRecordParser.int64_list_feature([vid]),
+            "third_category": Feature2vecRecordParser.int64_list_feature(([third_category])),
+            "tag": Feature2vecRecordParser.int64_list_feature([tag]),
+            "kis": Feature2vecRecordParser.int64_list_feature([kis]),
+            "album": Feature2vecRecordParser.int64_list_feature([album]),
+            "output": Feature2vecRecordParser.int64_list_feature([output])
+        }
+
+        serial_string = tf.train.Example(features=tf.train.Features(feature=feature))
+        return serial_string.SerializeToString()
+
+    def parse_predict(self, line):
         pass
 
-    def _parser_predict(self, line):
-        pass
-
-    def _parser_test(self, line):
-        pass
-
-    def _serial_string(self):
+    def parse_test(self, line):
         pass
 
 if __name__ == "__main__":

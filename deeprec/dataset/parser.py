@@ -14,12 +14,17 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+
 class ParserType(Enum):
     TRAIN = 1
     PREDICT = 2
     TEST = 3
 
+
 class BaseRecordParser(metaclass=abc.ABCMeta):
+    """
+
+    """
 
     def __init__(self, path,
                  output,
@@ -44,15 +49,15 @@ class BaseRecordParser(metaclass=abc.ABCMeta):
             file_path = os.path.join("{}/{}.{}.{}".format(self._output, self._prefix, files_index, self._suffix))
             writer = tf.io.TFRecordWriter(file_path)
             for index, line in enumerate(open(self._input, "r")):
-                self._parser(line)
-                serial = self._serial_string()
+                serial = self.parser(line)
                 writer.write(serial)
                 file_size += 1
                 if file_size >= self._size:
                     files_index += 1
                     file_size = 0
                     writer.close()
-                    file_path = os.path.join("{}/{}.{}.{}".format(self._output, self._prefix, files_index, self._suffix))
+                    file_path = os.path.join(
+                        "{}/{}.{}.{}".format(self._output, self._prefix, files_index, self._suffix))
                     writer = tf.io.TFRecordWriter(file_path)
                 if index % 10000 == 0 and self._verbose:
                     logging.info("build {}.{} index:{}".format(self._prefix, self._suffix, index))
@@ -60,8 +65,7 @@ class BaseRecordParser(metaclass=abc.ABCMeta):
         else:
             writer = tf.io.TFRecordWriter(os.path.join("{}/{}.{}".format(self._output, self._prefix, self._suffix)))
             for index, line in enumerate(open(self._input, "r")):
-                self._parser(line)
-                serial = self._serial_string()
+                serial = self.parser(line)
                 writer.write(serial)
                 if index % 10000 == 0 and self._verbose:
                     logging.info("build {}.{} index:{}".format(self._prefix, self._suffix, index))
@@ -69,32 +73,32 @@ class BaseRecordParser(metaclass=abc.ABCMeta):
         if self._verbose:
             logging.info("build {}.{} successful! output path:{}".format(self._prefix, self._suffix, self._output))
 
-    def _parser(self, line):
+    def parser(self, line) -> str:
+        """
+        :param line: input record line
+        :return:
+        """
         assert self._process not in ParserType.__members__
 
         if self._process == ParserType.TRAIN:
-            self._parser_train(line)
+            return self.parse_train(line)
 
         if self._process == ParserType.PREDICT:
-            self._parser_predict(line)
+            return self.parse_predict(line)
 
         if self._process == ParserType.TEST:
-            self._parser_test(line)
+            return self.parse_test(line)
 
     @abc.abstractmethod
-    def _serial_string(self):
+    def parse_train(self, line) -> str:
         pass
 
     @abc.abstractmethod
-    def _parser_train(self, line):
+    def parse_predict(self, line) -> str:
         pass
 
     @abc.abstractmethod
-    def _parser_predict(self, line):
-        pass
-
-    @abc.abstractmethod
-    def _parser_test(self, line):
+    def parse_test(self, line) -> str:
         pass
 
     @staticmethod
@@ -112,6 +116,3 @@ class BaseRecordParser(metaclass=abc.ABCMeta):
     @staticmethod
     def features_list_feature(x):
         return tf.train.FeatureList(feature=x)
-
-class MovieLensRecordParser(BaseRecordParser):
-    pass

@@ -19,13 +19,13 @@ def _parse_weight_mean(line) -> str:
     output = int(output_data[0])
 
     feature = {
-        "uid": Feature2vecRecordParser.bytes_list_feature([uid]),
-        "vid": Feature2vecRecordParser.int64_list_feature([vid]),
-        "third_category": Feature2vecRecordParser.int64_list_feature(([third_category])),
-        "tag": Feature2vecRecordParser.int64_list_feature([tag]),
-        "kis": Feature2vecRecordParser.int64_list_feature([kis]),
-        "album": Feature2vecRecordParser.int64_list_feature([album]),
-        "output": Feature2vecRecordParser.int64_list_feature([output])
+        "uid": BaseRecordParser.bytes_list_feature([uid]),
+        "vid": BaseRecordParser.int64_list_feature([vid]),
+        "third_category": BaseRecordParser.int64_list_feature(([third_category])),
+        "tag": BaseRecordParser.int64_list_feature([tag]),
+        "kis": BaseRecordParser.int64_list_feature([kis]),
+        "album": BaseRecordParser.int64_list_feature([album]),
+        "output": BaseRecordParser.int64_list_feature([output])
     }
 
     serial_string = tf.train.Example(features=tf.train.Features(feature=feature))

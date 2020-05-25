@@ -5,12 +5,13 @@ import argparse
 import tensorflow as tf
 from deeprec.dataset.parser import BaseRecordParser, ParserType
 
-def _parse_last(line) -> str:
+
+def _parse_last(line, predict=False) -> str:
     res = line.strip().split(" ")
     uid = bytes(res[0], encoding="utf-8")
 
     history = res[1].split(";")
-    #input context of video and features
+    # input context of video and features
 
     history_vid = [int(x) for x in history[0].split(",")]
     history_category = [int(x) for x in history[1].split(",")]
@@ -29,32 +30,41 @@ def _parse_last(line) -> str:
     last_author = int(last_view[5])
 
     # input of positive sample video and features
-    label = res[3].split(";")
-    label_vid = int(label[0])
-    label_category = int(label[1])
-    label_tag = int(label[2])
-    label_kis = int(label[3])
-    label_album = int(label[4])
-    label_author = int(label[5])
+    if predict is False:
+        label = res[3].split(";")
+        label_vid = int(label[0])
+        label_category = int(label[1])
+        label_tag = int(label[2])
+        label_kis = int(label[3])
+        label_album = int(label[4])
+        label_author = int(label[5])
 
-    # input of negative sample video and features
-    expose = res[4].split(";")
-    expose_vid = [int(x) for x in expose[0].split(",")]
-    expose_category = [int(x) for x in expose[1].split(",")]
-    expose_tag = [int(x) for x in expose[2].split(",")]
-    expose_kis = [int(x) for x in expose[3].split(",")]
-    expose_album = [int(x) for x in expose[4].split(",")]
-    expose_author = [int(x) for x in expose[5].split(",")]
+        # input of negative sample video and features
+        expose = res[4].split(";")
+        expose_vid = [int(x) for x in expose[0].split(",")]
+        expose_category = [int(x) for x in expose[1].split(",")]
+        expose_tag = [int(x) for x in expose[2].split(",")]
+        expose_kis = [int(x) for x in expose[3].split(",")]
+        expose_album = [int(x) for x in expose[4].split(",")]
+        expose_author = [int(x) for x in expose[5].split(",")]
 
-    label_sample = [0.0 for _ in expose_vid]
-    expose_vid.append(label_vid)
-    expose_category.append(label_category)
-    expose_tag.append(label_tag)
-    expose_kis.append(label_kis)
-    expose_album.append(label_album)
-    expose_author.append(label_author)
+        label_sample = [0.0 for _ in expose_vid]
+        expose_vid.append(label_vid)
+        expose_category.append(label_category)
+        expose_tag.append(label_tag)
+        expose_kis.append(label_kis)
+        expose_album.append(label_album)
+        expose_author.append(label_author)
 
-    label_sample.append(1.0)
+        label_sample.append(1.0)
+    else:
+        expose_vid = None
+        expose_category = None
+        expose_tag = None
+        expose_kis = None
+        expose_album = None
+        expose_author = None
+        label_sample = None
 
     feature = {
         "uid": BaseRecordParser.bytes_list_feature([uid]),
@@ -65,12 +75,12 @@ def _parse_last(line) -> str:
         "history_album": BaseRecordParser.int64_list_feature(history_album),
         "history_author": BaseRecordParser.int64_list_feature(history_author),
 
-        "last_vid": BaseRecordParser.int64_list_feature(last_vid),
-        "last_category": BaseRecordParser.int64_list_feature(last_category),
-        "last_tag": BaseRecordParser.int64_list_feature(last_tag),
-        "last_kis": BaseRecordParser.int64_list_feature(last_kis),
-        "last_album": BaseRecordParser.int64_list_feature(last_album),
-        "last_author": BaseRecordParser.int64_list_feature(last_author),
+        "last_vid": BaseRecordParser.int64_list_feature([last_vid]),
+        "last_category": BaseRecordParser.int64_list_feature([last_category]),
+        "last_tag": BaseRecordParser.int64_list_feature([last_tag]),
+        "last_kis": BaseRecordParser.int64_list_feature([last_kis]),
+        "last_album": BaseRecordParser.int64_list_feature([last_album]),
+        "last_author": BaseRecordParser.int64_list_feature([last_author]),
 
         "expose_vid": BaseRecordParser.int64_list_feature(expose_vid),
         "expose_category": BaseRecordParser.int64_list_feature(expose_category),
@@ -80,16 +90,17 @@ def _parse_last(line) -> str:
         "expose_author": BaseRecordParser.int64_list_feature(expose_author),
         "label_sample": BaseRecordParser.float_list_feature(label_sample),
     }
-
     serial_string = tf.train.Example(features=tf.train.Features(feature=feature))
+
     return serial_string.SerializeToString()
+
 
 
 class YouTubeDNNRecordParser(BaseRecordParser):
 
     def __init__(self, path,
                  output,
-                 input_format="concat",
+                 input_format="last",
                  prefix="feature2vec",
                  suffix="record",
                  size=50000,
@@ -108,7 +119,8 @@ class YouTubeDNNRecordParser(BaseRecordParser):
             return _parse_last(line)
 
     def parse_predict(self, line):
-        pass
+        if self._format == "last":
+            return _parse_last(line, True)
 
     def parse_test(self, line):
         pass
@@ -120,14 +132,14 @@ if __name__ == "__main__":
     ap.add_argument("--output", default=None, type=str, help="output path of record", required=True)
     ap.add_argument("--process", default=None, type=str, help="process of parser:[TRAIN, PREDICT]", required=True)
     ap.add_argument("--size", default=50000, type=int, help="size of record file")
-    ap.add_argument("--combine", default=None, type=str, help="method of combine feature vector", required=True)
+    ap.add_argument("--format", default=None, type=str, help="method of combine feature vector", required=True)
 
     args = vars(ap.parse_args())
     if args["process"] == "TRAIN":
         parser = YouTubeDNNRecordParser(path=args["input"],
-                                         output=args["output"], process=ParserType.TRAIN)
+                                        output=args["output"], process=ParserType.TRAIN)
         parser.dump()
     if args["process"] == "PREDICT":
         parser = YouTubeDNNRecordParser(path=args["input"],
-                                         output=args["output"], process=ParserType.PREDICT)
+                                        output=args["output"], process=ParserType.PREDICT)
         parser.dump()
